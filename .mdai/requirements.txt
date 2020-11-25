@@ -1,0 +1,4 @@
+nibabel
+dicom2nifti
+scikit-image
+tensorflow==2.2.0
