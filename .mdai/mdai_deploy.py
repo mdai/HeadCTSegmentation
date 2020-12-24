@@ -3,7 +3,7 @@ import dicom2nifti
 import pydicom
 from io import BytesIO
 
-from z_unet import unet
+from z_unet_new import unet
 
 import nibabel
 import numpy as np
@@ -253,7 +253,7 @@ class MDAIModel:
                         "study_uid": str(dicom_files[i].StudyInstanceUID),
                         "series_uid": str(dicom_files[i].SeriesInstanceUID),
                         "instance_uid": str(dicom_files[i].SOPInstanceUID),
-                        "class_index": label,
+                        "class_index": int(label),
                         "data": data,
                     }
                     preds.append(output)
