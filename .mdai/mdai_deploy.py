@@ -11,7 +11,6 @@ import nibabel
 import numpy as np
 import tensorflow as tf
 
-# from skimage.measure import find_contours
 import cv2
 from dicom2nifti.image_volume import ImageVolume, SliceType
 
