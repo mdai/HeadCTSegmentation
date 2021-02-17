@@ -10,7 +10,9 @@ import shutil
 import nibabel
 import numpy as np
 import tensorflow as tf
-from skimage.measure import find_contours
+
+# from skimage.measure import find_contours
+import cv2
 from dicom2nifti.image_volume import ImageVolume, SliceType
 
 
@@ -73,26 +75,27 @@ class MDAIModel:
 
         nifti_file = dicom2nifti.convert_dicom.dicom_array_to_nifti(
             dicom_files,
-            output_file=os.path.join(self.tempdir, "input.nii.gz"),
+            output_file=os.path.join(
+                self.tempdir, dicom_files[0].SeriesInstanceUID + ".nii.gz"
+            ),
             reorient_nifti=True,
         )
         print("Converted to NIFTI", flush=True)
 
         test_images = nibabel.load(
-            os.path.join(self.tempdir, "input.nii.gz")
+            os.path.join(self.tempdir, dicom_files[0].SeriesInstanceUID + ".nii.gz")
         ).get_fdata()
         test_images = np.moveaxis(test_images, -1, 0)
         test_images = np.expand_dims(test_images, -1).astype(np.float32)
         num_images = test_images.shape[0]
+
         print("Running model...", flush=True)
         predlabel = self.model.predict(test_images, batch_size=1, verbose=1)
         print("Model run completed", flush=True)
+
         predlabel = predlabel.reshape((num_images, 512, 512, self.nb_classes))
         predlabel = np.argmax(predlabel, axis=3)
         predlabel = np.moveaxis(predlabel, 0, -1).astype("uint16")
-        # predlabel = np.flip(predlabel, 0)
-        # predlabel = np.flip(predlabel, 1)
-        # predlabel = np.flip(predlabel, 2)
 
         for i in range(num_images):
             vals = set(np.unique(predlabel[:, :, i]))
@@ -103,22 +106,30 @@ class MDAIModel:
             ]
 
             if masks:
-                contours = [
-                    (submask, m[1]) for m in masks for submask in find_contours(m[0], 0)
-                ]
-                # contours = [(find_contours(m[0], 0)[0], m[1]) for m in masks]
                 preds = []
-                for contour, label in contours:
-                    data = {"vertices": [[(v[1]), (v[0])] for v in contour.tolist()]}
-                    output = {
-                        "type": "ANNOTATION",
-                        "study_uid": str(dicom_files[i].StudyInstanceUID),
-                        "series_uid": str(dicom_files[i].SeriesInstanceUID),
-                        "instance_uid": str(dicom_files[i].SOPInstanceUID),
-                        "class_index": int(label),
-                        "data": data,
-                    }
-                    preds.append(output)
+                for submask, label in masks:
+                    contours, hierarchy = cv2.findContours(
+                        submask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
+                    )
+                    contours = [
+                        (contours[j].reshape(-1, 2), label)
+                        for j in range(len(contours))
+                        if hierarchy[0, j, 3] == -1
+                    ]
+
+                    for contour, label in contours:
+                        data = {
+                            "vertices": [[(v[0]), (v[1])] for v in contour.tolist()]
+                        }
+                        output = {
+                            "type": "ANNOTATION",
+                            "study_uid": str(dicom_files[i].StudyInstanceUID),
+                            "series_uid": str(dicom_files[i].SeriesInstanceUID),
+                            "instance_uid": str(dicom_files[i].SOPInstanceUID),
+                            "class_index": int(label),
+                            "data": data,
+                        }
+                        preds.append(output)
             else:
                 preds = [
                     {
@@ -129,6 +140,9 @@ class MDAIModel:
                     }
                 ]
             outputs += preds
-        shutil.rmtree(self.tempdir)
+
+        os.remove(
+            os.path.join(self.tempdir, dicom_files[0].SeriesInstanceUID + ".nii.gz")
+        )
         return outputs
 

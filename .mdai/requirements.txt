@@ -1,4 +1,5 @@
 nibabel
 dicom2nifti
 scikit-image
+opencv-python
 tensorflow==2.2.0
