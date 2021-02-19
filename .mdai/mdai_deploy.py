@@ -13,6 +13,10 @@ import tensorflow as tf
 
 import cv2
 from dicom2nifti.image_volume import ImageVolume, SliceType
+import dicom2nifti.settings as settings
+
+settings.disable_validate_orthogonal()
+settings.disable_validate_slice_increment()
 
 
 class MDAIModel:
