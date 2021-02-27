@@ -111,28 +111,15 @@ class MDAIModel:
             if masks:
                 preds = []
                 for submask, label in masks:
-                    contours, hierarchy = cv2.findContours(
-                        submask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
-                    )
-                    contours = [
-                        (contours[j].reshape(-1, 2), label)
-                        for j in range(len(contours))
-                        if hierarchy[0, j, 3] == -1
-                    ]
-
-                    for contour, label in contours:
-                        data = {
-                            "vertices": [[(v[0]), (v[1])] for v in contour.tolist()]
-                        }
-                        output = {
-                            "type": "ANNOTATION",
-                            "study_uid": str(dicom_files[i].StudyInstanceUID),
-                            "series_uid": str(dicom_files[i].SeriesInstanceUID),
-                            "instance_uid": str(dicom_files[i].SOPInstanceUID),
-                            "class_index": int(label),
-                            "data": data,
-                        }
-                        preds.append(output)
+                    output = {
+                        "type": "ANNOTATION",
+                        "study_uid": str(dicom_files[i].StudyInstanceUID),
+                        "series_uid": str(dicom_files[i].SeriesInstanceUID),
+                        "instance_uid": str(dicom_files[i].SOPInstanceUID),
+                        "class_index": int(label),
+                        "data": {"mask": submask.tolist()},
+                    }
+                    preds.append(output)
             else:
                 preds = [
                     {
