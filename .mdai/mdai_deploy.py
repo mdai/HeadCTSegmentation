@@ -28,38 +28,6 @@ class MDAIModel:
         self.model = unet(self.nb_classes)
         self.model.load_weights(modelpath)
 
-    def sort_dicoms(self, dicoms):
-        """
-        Sort the dicoms based om the image possition patient
-
-        :param dicoms: list of dicoms
-        """
-        # find most significant axis to use during sorting
-        # the original way of sorting (first x than y than z) does not work in certain border situations
-        # where for exampe the X will only slightly change causing the values to remain equal on multiple slices
-        # messing up the sorting completely)
-        dicom_input_sorted_x = sorted(dicoms, key=lambda x: (x.ImagePositionPatient[0]))
-        dicom_input_sorted_y = sorted(dicoms, key=lambda x: (x.ImagePositionPatient[1]))
-        dicom_input_sorted_z = sorted(dicoms, key=lambda x: (x.ImagePositionPatient[2]))
-        diff_x = abs(
-            dicom_input_sorted_x[-1].ImagePositionPatient[0]
-            - dicom_input_sorted_x[0].ImagePositionPatient[0]
-        )
-        diff_y = abs(
-            dicom_input_sorted_y[-1].ImagePositionPatient[1]
-            - dicom_input_sorted_y[0].ImagePositionPatient[1]
-        )
-        diff_z = abs(
-            dicom_input_sorted_z[-1].ImagePositionPatient[2]
-            - dicom_input_sorted_z[0].ImagePositionPatient[2]
-        )
-        if diff_x >= diff_y and diff_x >= diff_z:
-            return dicom_input_sorted_x
-        if diff_y >= diff_x and diff_y >= diff_z:
-            return dicom_input_sorted_y
-        if diff_z >= diff_x and diff_z >= diff_y:
-            return dicom_input_sorted_z
-
     def predict(self, data):
         input_files = data["files"]
         input_annotations = data["annotations"]
@@ -74,7 +42,7 @@ class MDAIModel:
 
             dicom_files.append(pydicom.dcmread(BytesIO(file["content"])))
 
-        dicom_files = self.sort_dicoms(dicom_files)
+        dicom_files = dicom2nifti.common.sort_dicoms(dicom_files)
 
         nifti_file = dicom2nifti.convert_dicom.dicom_array_to_nifti(
             dicom_files,
